@@ -9,7 +9,9 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 
 librarian::shelf(digest, tidyverse, DT, tensorflow, keras, glue, here)
+```
 
+```{r}
 # path to folder containing species directories of images
 dir_src  <- "/courses/EDS232/inaturalist-2021/train_mini"
 dir_dest <- here("inat/")
@@ -75,10 +77,12 @@ d %>%
 ## pre-processing ##
 train_dir_2sp <- here("inat/spp2/train/")
 validation_dir_2sp <- here("inat/spp2/validation/")
+test_dir_2sp <- here("inat/spp2/test/")
 
 ## all images will be rescaled by 1/255 ##
 train_datagen <- image_data_generator(rescale = 1/255)
 validation_datagen <- image_data_generator(rescale = 1/255)
+test_datagen <- image_data_generator(rescale = 1/255)
 
 train_generator_2sp <- flow_images_from_directory(
   train_dir_2sp, # target directory
@@ -94,6 +98,13 @@ validation_generator_2sp <- flow_images_from_directory(
   target_size = c(150, 150),
   batch_size = 5,
   class_mode = "binary")
+
+test_generator_2sp <- flow_images_from_directory(
+  test_dir_2sp,
+  test_datagen,
+  target_size = c(150, 150),
+  batch_size = 5,
+  class_mode = "binary")
 ```
 
 ### neural net
@@ -101,9 +112,9 @@ validation_generator_2sp <- flow_images_from_directory(
 ```{r}
 # model using neural nets
 model_2sp <- keras_model_sequential() %>% 
+  layer_flatten() %>%
   layer_dense(units = 16, activation = "relu", input_shape = c(150, 150, 3)) %>%
   layer_dense(units = 16, activation = "relu") %>% 
-  layer_flatten() %>%
   layer_dense(units =  1, activation = "sigmoid")
 ```
 
@@ -122,12 +133,22 @@ history_2sp <- model_2sp %>% fit(
     steps_per_epoch = 5,
     epochs = 30,
     validation_data = validation_generator_2sp,
-    validation_steps = 5)
+    validation_steps = 1)
 ```
 
 ```{r}
 plot(history_2sp)
 ```
+```{r}
+history_2sp
+```
+
+```{r}
+results_2sp <- model_2sp %>% evaluate(test_generator_2sp)
+
+results_2sp
+```
+
 
 
 ### convolutional neural net
@@ -153,7 +174,7 @@ model_cnn_2sp <- keras_model_sequential() %>%
 # compiling model cnn
 model_cnn_2sp %>% compile(
   loss = "binary_crossentropy",
-  optimizer = optimizer_rmsprop(lr = 1e-4),
+  optimizer = optimizer_rmsprop(learning_rate = 1e-4),
   metrics = c("acc"))
 ```
 
@@ -164,91 +185,154 @@ history_cnn_2sp <- model_cnn_2sp %>% fit_generator(
     steps_per_epoch = 5,
     epochs = 30,
     validation_data = validation_generator_2sp,
-    validation_steps = 5)
+    validation_steps = 1)
 ```
 
 ```{r}
 plot(history_cnn_2sp)
 ```
+```{r}
+history_cnn_2sp
+```
 
+```{r}
+results_cnn_2sp <- model_cnn_2sp %>% evaluate(test_generator_2sp)
+
+results_cnn_2sp
+```
 
 
 
 ## 10 species
 
 ```{r}
-#original_dataset_dir <- "/courses/EDS232/inaturalist-2021/train_mini"
+## pre-processing ##
+train_dir_10sp <- here("inat/spp10/train/")
+validation_dir_10sp <- here("inat/spp10/validation/")
+test_dir_10sp <- here("inat/spp10/test/")
 
-# create base file paths
-base_dir <- "/Users/cboyajian/winter_quarter/EDS232/eds232_lab4_deep-learning"
-train_10_dir <- file.path(base_dir, "train_10")
-validation_10_dir <- file.path(base_dir, "validation_10")
-test_10_dir <- file.path(base_dir, "test_10")
-# create base folders (train, validate, test)
-dir.create(train_10_dir)
-dir.create(validation_10_dir)
-dir.create(test_10_dir)
+## all images will be rescaled by 1/255 ##
+train_datagen <- image_data_generator(rescale = 1/255)
+validation_datagen <- image_data_generator(rescale = 1/255)
+test_datagen <- image_data_generator(rescale = 1/255)
 
-# create folder for all 10 species
-for (i in 1:length(species_10)){
-  dir.create(file.path(train_10_dir, str_sub(species_10[[i]], start = 1, end = 5)))
-  dir.create(file.path(validation_10_dir, str_sub(species_10[[i]], start = 1, end = 5)))
-  dir.create(file.path(test_10_dir, str_sub(species_10[[i]], start = 1, end = 5)))
-}
+train_generator_10sp <- flow_images_from_directory(
+  train_dir_10sp, # target directory
+  train_datagen, # data generator
+  target_size = c(150, 150), # all images resized to 150x150
+  batch_size = 5, # larger than 5 throws error
+  class_mode = "categorical"
+  )
+
+validation_generator_10sp <- flow_images_from_directory(
+  validation_dir_10sp,
+  validation_datagen,
+  target_size = c(150, 150),
+  batch_size = 5,
+  class_mode = "categorical")
+
+test_generator_10sp <- flow_images_from_directory(
+  test_dir_10sp,
+  test_datagen,
+  target_size = c(150, 150),
+  batch_size = 5,
+  class_mode = "categorical")
 ```
 
 
-```{r}
-# create test, validation, and training groups of images
-for(i in 1:length(species_10)){
-  # create 5 groups of 10 random samples
-  species_samples_10 <- replicate(5, 
-                                  sample(list.files(paste0(original_dataset_dir, "/", species_10[[i]]), 
-                                                    full.names = TRUE), replace = FALSE, 10))
-  ## train n = 30 ##
-  train <- rbind(species_samples_10[,1], species_samples_10[,2], species_samples_10[,3])
-  file.copy(from = train, 
-            to = paste0(train_10_dir, "/", str_sub(species_10[[i]], start = 1, end = 5)))
-  ## validation n = 10 ##
-  validate <- species_samples_10[,4]
-  file.copy(from = validate,
-            to = paste0(validation_10_dir, "/", str_sub(species_10[[i]], start = 1, end = 5)))
-  ## train n = 10 ##
-  test <- species_samples_10[,5]
-  file.copy(from = test,
-            to = paste0(test_10_dir, "/", str_sub(species_10[[i]], start = 1, end = 5)))
-  }
-```
 
 ### neural net
 
 ```{r}
 # model using neural nets
-model_10 <- keras_model_sequential() %>% 
-  layer_dense(units = 16, activation = "relu", input_shape = c(150, 150, 3)) %>%
+model_10sp <- keras_model_sequential() %>% 
+  layer_dense(units = 64, activation = "relu", input_shape = c(150, 150, 3)) %>%
+  layer_dense(units = 64, activation = "relu") %>% 
   layer_flatten() %>% 
-  layer_dense(units = 16, activation = "relu") %>% 
-  layer_dense(units =  1, activation = "softmax") 
+  layer_dense(units = 10, activation = "softmax") 
 ```
 
 ```{r}
 # compile model
-model_10 %>% compile(
+model_10sp %>% compile(
   optimizer = "rmsprop",
   loss = "categorical_crossentropy",
   metrics = c("accuracy"))
-
 ```
 
 ```{r}
 # fitting model using neural nets
-history_10 <- model_2 %>% fit(
-    train_10_generator,
+history_10sp <- model_10sp %>% fit(
+    train_generator_10sp,
     steps_per_epoch = 5,
     epochs = 30,
-    validation_data = validation_10_generator,
-    validation_steps = 5)
+    validation_data = validation_generator_10sp,
+    validation_steps = 1)
+```
+
+```{r}
+plot(history_10sp)
+```
+
+```{r}
+history_10sp
 ```
 
 
+```{r}
+results_10sp <- model_10sp %>% evaluate(test_generator_10sp)
+
+results_10sp
+```
+
+### convolutional neural net
+
+```{r}
+# model using convolutional neural net
+model_cnn_10sp <- keras_model_sequential() %>% 
+  layer_conv_2d(filters = 32, kernel_size = c(3, 3), activation = "relu",
+                input_shape = c(150, 150, 3)) %>% 
+  layer_max_pooling_2d(pool_size = c(2, 2)) %>% 
+  layer_conv_2d(filters = 64, kernel_size = c(3, 3), activation = "relu") %>% 
+  layer_max_pooling_2d(pool_size = c(2, 2)) %>% 
+  layer_conv_2d(filters = 128, kernel_size = c(3, 3), activation = "relu") %>% 
+  layer_max_pooling_2d(pool_size = c(2, 2)) %>% 
+  layer_conv_2d(filters = 128, kernel_size = c(3, 3), activation = "relu") %>% 
+  layer_max_pooling_2d(pool_size = c(2, 2)) %>% 
+  layer_flatten() %>% 
+  layer_dense(units = 512, activation = "relu") %>% 
+  layer_dense(units = 10, activation = "softmax")
+```
+
+```{r}
+# compiling model cnn
+model_cnn_10sp %>% compile(
+  loss = "categorical_crossentropy",
+  optimizer = optimizer_rmsprop(learning_rate = 1e-4),
+  metrics = c("acc"))
+```
+
+```{r}
+# fitting model cnn
+history_cnn_10sp <- model_cnn_10sp %>% fit_generator(
+    train_generator_10sp,
+    steps_per_epoch = 5,
+    epochs = 30,
+    validation_data = validation_generator_10sp,
+    validation_steps = 1)
+```
+
+```{r}
+plot(history_cnn_10sp)
+```
+
+```{r}
+history_cnn_10sp
+```
+
+```{r}
+results_cnn_10sp <- model_cnn_10sp %>% evaluate(test_generator_10sp)
+
+results_cnn_10sp
+```
 
