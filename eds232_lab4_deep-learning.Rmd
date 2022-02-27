@@ -11,6 +11,8 @@ knitr::opts_chunk$set(echo = TRUE)
 librarian::shelf(digest, tidyverse, DT, tensorflow, keras, glue, here)
 ```
 
+# Create directories and images for 2 species and 10 species models
+
 ```{r}
 # path to folder containing species directories of images
 dir_src  <- "/courses/EDS232/inaturalist-2021/train_mini"
@@ -42,7 +44,6 @@ i2 <- i10[1:2]
 basename(dirs_spp)[i2]
 ```
 
-## 2 species
 
 ```{r}
 # setup data frame with source (src) and destination (dest) paths to images
@@ -72,6 +73,9 @@ d %>%
     file.copy(src_img, dest_img) })
 ```
 
+# 2 Species
+
+## Pre-processing
 
 ```{r}
 ## pre-processing ##
@@ -107,11 +111,11 @@ test_generator_2sp <- flow_images_from_directory(
   class_mode = "binary")
 ```
 
-### neural net
+## Neural net model
 
 ```{r}
 # model using neural nets
-model_2sp <- keras_model_sequential() %>% 
+model_nn_2sp <- keras_model_sequential() %>% 
   layer_flatten() %>%
   layer_dense(units = 16, activation = "relu", input_shape = c(150, 150, 3)) %>%
   layer_dense(units = 16, activation = "relu") %>% 
@@ -120,38 +124,37 @@ model_2sp <- keras_model_sequential() %>%
 
 ```{r}
 # compiling model
-model_2sp %>% compile(
+model_nn_2sp %>% compile(
   loss = "binary_crossentropy",
   optimizer = optimizer_rmsprop(learning_rate = 1e-4),
-  metrics = c("acc"))
+  metrics = c("accuracy"))
 ```
 
 ```{r}
 # fitting model using neural nets
-history_2sp <- model_2sp %>% fit(
+history_nn_2sp <- model_nn_2sp %>% fit(
     train_generator_2sp,
-    steps_per_epoch = 5,
-    epochs = 30,
+    steps_per_epoch = 6,
+    epochs = 11,
     validation_data = validation_generator_2sp,
     validation_steps = 1)
 ```
 
 ```{r}
-plot(history_2sp)
+plot(history_nn_2sp)
 ```
 ```{r}
-history_2sp
+history_nn_2sp
 ```
 
 ```{r}
-results_2sp <- model_2sp %>% evaluate(test_generator_2sp)
+results_nn_2sp <- model_nn_2sp %>% evaluate(test_generator_2sp)
 
-results_2sp
+results_nn_2sp
 ```
 
 
-
-### convolutional neural net
+## Convolutional neural net model
 
 ```{r}
 # model using convolutional neural net
@@ -175,7 +178,7 @@ model_cnn_2sp <- keras_model_sequential() %>%
 model_cnn_2sp %>% compile(
   loss = "binary_crossentropy",
   optimizer = optimizer_rmsprop(learning_rate = 1e-4),
-  metrics = c("acc"))
+  metrics = c("accuracy"))
 ```
 
 ```{r}
@@ -183,7 +186,7 @@ model_cnn_2sp %>% compile(
 history_cnn_2sp <- model_cnn_2sp %>% fit_generator(
     train_generator_2sp,
     steps_per_epoch = 5,
-    epochs = 30,
+    epochs = 11,
     validation_data = validation_generator_2sp,
     validation_steps = 1)
 ```
@@ -201,9 +204,21 @@ results_cnn_2sp <- model_cnn_2sp %>% evaluate(test_generator_2sp)
 results_cnn_2sp
 ```
 
+## Standard neural net vs. convolutional neural net
+
+```{r}
+results_nn_2sp
+
+results_cnn_2sp
+```
+
+The standard neural net model when evaluated on the test images has an accuracy rate of `r results_nn_2sp[[2]]` and a loss raet of `r results_nn_2sp[[1]]` as compared to the convolutional neural net model which has an accuracy rate of `r results_cnn_2sp[[2]]` and loss rate of `r results_cnn_2sp[[1]]`. Based on this, I would choose to use the convolutional neural net.
 
 
-## 10 species
+
+# 10 species 
+
+## Pre-processing
 
 ```{r}
 ## pre-processing ##
@@ -240,12 +255,11 @@ test_generator_10sp <- flow_images_from_directory(
 ```
 
 
-
-### neural net
+## Neural net model
 
 ```{r}
 # model using neural nets
-model_10sp <- keras_model_sequential() %>% 
+model_nn_10sp <- keras_model_sequential() %>% 
   layer_dense(units = 64, activation = "relu", input_shape = c(150, 150, 3)) %>%
   layer_dense(units = 64, activation = "relu") %>% 
   layer_flatten() %>% 
@@ -254,7 +268,7 @@ model_10sp <- keras_model_sequential() %>%
 
 ```{r}
 # compile model
-model_10sp %>% compile(
+model_nn_10sp %>% compile(
   optimizer = "rmsprop",
   loss = "categorical_crossentropy",
   metrics = c("accuracy"))
@@ -262,30 +276,30 @@ model_10sp %>% compile(
 
 ```{r}
 # fitting model using neural nets
-history_10sp <- model_10sp %>% fit(
+history_nn_10sp <- model_nn_10sp %>% fit(
     train_generator_10sp,
     steps_per_epoch = 5,
     epochs = 30,
     validation_data = validation_generator_10sp,
-    validation_steps = 1)
+    validation_steps = 10)
 ```
 
 ```{r}
-plot(history_10sp)
+plot(history_nn_10sp)
 ```
 
 ```{r}
-history_10sp
+history_nn_10sp
 ```
-
 
 ```{r}
-results_10sp <- model_10sp %>% evaluate(test_generator_10sp)
+results_nn_10sp <- model_nn_10sp %>% evaluate(test_generator_10sp)
 
-results_10sp
+results_nn_10sp
 ```
 
-### convolutional neural net
+
+## Convolutional neural net model
 
 ```{r}
 # model using convolutional neural net
@@ -309,7 +323,7 @@ model_cnn_10sp <- keras_model_sequential() %>%
 model_cnn_10sp %>% compile(
   loss = "categorical_crossentropy",
   optimizer = optimizer_rmsprop(learning_rate = 1e-4),
-  metrics = c("acc"))
+  metrics = c("accuracy"))
 ```
 
 ```{r}
@@ -319,7 +333,7 @@ history_cnn_10sp <- model_cnn_10sp %>% fit_generator(
     steps_per_epoch = 5,
     epochs = 30,
     validation_data = validation_generator_10sp,
-    validation_steps = 1)
+    validation_steps = 10)
 ```
 
 ```{r}
@@ -336,3 +350,13 @@ results_cnn_10sp <- model_cnn_10sp %>% evaluate(test_generator_10sp)
 results_cnn_10sp
 ```
 
+
+## Standard neural net vs. convolutional neural net
+
+```{r}
+results_nn_10sp
+
+results_cnn_10sp
+```
+
+The standard neural net model when evaluated on the test images has an accuracy rate of `r results_nn_10sp[[2]]` and a loss rate of `r results_nn_10sp[[1]]` as compared to the convolutional neural net model which has an accuracy rate of `r results_cnn_10sp[[2]]` and loss rate of `r results_cnn_10sp[[1]]`. Based on this, I would choose the standard neural net model.
