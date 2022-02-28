@@ -116,10 +116,10 @@ test_generator_2sp <- flow_images_from_directory(
 ```{r}
 # model using neural nets
 model_nn_2sp <- keras_model_sequential() %>% 
-  layer_flatten() %>%
   layer_dense(units = 16, activation = "relu", input_shape = c(150, 150, 3)) %>%
+  layer_flatten() %>%
   layer_dense(units = 16, activation = "relu") %>% 
-  layer_dense(units =  1, activation = "sigmoid")
+  layer_dense(units = 1, activation = "sigmoid")
 ```
 
 ```{r}
